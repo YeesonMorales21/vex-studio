@@ -1,0 +1,256 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>VEX Studio — Video Extraction Express</title>
+    <link rel="icon" href="/api/logo">
+    <!-- Cargamos Google Fonts y FontAwesome para iconos atractivos -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+    <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+
+    <!-- EFECTO DE LUZ AMBIENTAL DE FONDO -->
+    <div class="ambient-glow glow-1"></div>
+    <div class="ambient-glow glow-2"></div>
+
+    <!-- NAVBAR PRO GLASSMORPHISM -->
+    <header class="navbar">
+        <div class="navbar-left">
+            <div class="logo-brand-stack">
+                <img src="/api/logo" alt="VEX Logo" class="custom-brand-logo">
+                <small class="brand-subtitle">Video Extraction Express</small>
+            </div>
+        </div>
+
+        <div class="navbar-right">
+            <!-- BADGES DE PLATAFORMAS COMPATIBLES (ALINEADOS AL LADO CONTRARIO DEL LOGO) -->
+            <div class="platform-pills">
+                <span class="plat-pill yt" title="YouTube & Shorts"><i class="fa-brands fa-youtube"></i> YouTube</span>
+                <span class="plat-pill tk" title="TikTok sin marca de agua"><i class="fa-brands fa-tiktok"></i> TikTok</span>
+                <span class="plat-pill fb" title="Facebook Watch & Reels"><i class="fa-brands fa-facebook"></i> Facebook</span>
+                <span class="plat-pill ig" title="Instagram Reels"><i class="fa-brands fa-instagram"></i> Instagram</span>
+                <span class="plat-pill kk" title="Kick & Twitch"><i class="fa-solid fa-gamepad"></i> Kick</span>
+            </div>
+
+            <div class="nav-divider"></div>
+
+            <!-- CONTADOR RÁPIDO EN VIVO -->
+            <div class="nav-stat-chip" title="Total de recursos guardados en MongoDB Atlas">
+                <i class="fa-solid fa-layer-group"></i>
+                <span>Recursos: <strong id="nav-total-count">0</strong></span>
+            </div>
+
+            <!-- INDICADOR DE ESTADO DEL SERVIDOR Y ATLAS -->
+            <div id="api-status-badge" class="status-pill online">
+                <span class="status-dot"></span>
+                <span id="api-status-text">API & Atlas Online</span>
+            </div>
+        </div>
+    </header>
+
+    <main class="container">
+        <!-- SECCIÓN SUPERIOR: PANEL DE EXTRACCIÓN MULTIMEDIA -->
+        <section class="panel-control">
+            <div class="panel-header">
+                <div>
+                    <h2><i class="fa-solid fa-wand-magic-sparkles text-accent"></i> Estudio de Extracción Multimedia</h2>
+                    <p class="subtitle">Pega un enlace de YouTube, TikTok, Facebook, Instagram o Kick para recortar clips, descargar películas/videos completos, extraer canciones MP3 o capturar fotogramas HD.</p>
+                </div>
+            </div>
+            
+            <form id="form-extractor" class="extractor-form">
+                <div class="input-group">
+                    <i class="fa-solid fa-link input-icon"></i>
+                    <input type="url" id="url-video" placeholder="Pega aquí el enlace de YouTube, TikTok, Facebook, Instagram o Kick..." required>
+                    <button type="button" id="btn-procesar" class="btn-primary">
+                        <i class="fa-solid fa-magnifying-glass-chart"></i> Analizar Enlace
+                    </button>
+                </div>
+
+                <!-- TARJETA DE VISTA PREVIA DEL VIDEO DETECTADO (NUEVO) -->
+                <div id="video-preview-card" class="video-preview-card hide">
+                    <img id="preview-thumb" src="" alt="Miniatura del video" class="preview-thumb">
+                    <div class="preview-info">
+                        <div class="preview-badges">
+                            <span id="preview-platform" class="preview-badge-plat"><i class="fa-solid fa-globe"></i> Plataforma</span>
+                            <span id="preview-duration" class="preview-badge-time"><i class="fa-regular fa-clock"></i> 00:00</span>
+                        </div>
+                        <h4 id="preview-title">Título detectado del video</h4>
+                        <p id="preview-author"><i class="fa-solid fa-user-check"></i> Canal / Creador</p>
+                    </div>
+                </div>
+
+                <!-- CONTROLES EXTRAORDINARIOS (Se habilitan tras verificar el enlace) -->
+                <div id="controles-multimedia" class="controles-multimedia hide">
+                    <div class="form-row">
+                        <div class="form-field">
+                            <label for="titulo-recurso"><i class="fa-solid fa-heading"></i> Título del Recurso (autocompletado o editable):</label>
+                            <input type="text" id="titulo-recurso" placeholder="Ej. Momento épico del stream">
+                        </div>
+                        <div class="form-field">
+                            <label for="tipo-recurso"><i class="fa-solid fa-sliders"></i> ¿Qué deseas extraer?</label>
+                            <select id="tipo-recurso">
+                                <option value="video">🎬 Clip de Video (MP4)</option>
+                                <option value="video_completo">🍿 Video (MP4)</option>
+                                <option value="audio_completo">🎵 Audio (MP3)</option>
+                                <option value="imagen">📸 Fotograma Fijo en HD (JPG)</option>
+                            </select>
+                        </div>
+                    </div>
+
+                    <!-- Campos variables según el tipo de recurso -->
+                    <div id="campos-video" class="form-row">
+                        <div class="form-field-short">
+                            <label for="tiempo-inicio"><i class="fa-regular fa-circle-play"></i> Tiempo de Inicio (ej. 01:30 o 90):</label>
+                            <input type="text" id="tiempo-inicio" placeholder="00:00 o segundos" value="00:00">
+                        </div>
+                        <div class="form-field-short">
+                            <label for="tiempo-fin"><i class="fa-regular fa-circle-stop"></i> Tiempo de Fin (ej. 02:00 o 120):</label>
+                            <input type="text" id="tiempo-fin" placeholder="00:30 o segundos" value="00:30">
+                        </div>
+                    </div>
+
+                    <div id="campos-completo" class="form-row text-center hide">
+                        <div class="info-banner-completo">
+                            <i class="fa-solid fa-circle-info"></i>
+                            <span>Se descargará la duración completa del enlace de principio a fin en máxima calidad compatible.</span>
+                        </div>
+                    </div>
+
+                    <div id="campos-imagen" class="form-row text-center hide">
+                        <div class="form-field-short">
+                            <label for="segundo-captura"><i class="fa-solid fa-camera"></i> Minuto / Segundo exacto de la foto (ej. 01:15 o 75):</label>
+                            <input type="text" id="segundo-captura" placeholder="00:10 o segundos" value="00:10">
+                        </div>
+                    </div>
+
+                    <button type="submit" id="btn-generar" class="btn-success">
+                        <i class="fa-solid fa-bolt"></i> Generar y Guardar en la Nube
+                    </button>
+                </div>
+            </form>
+
+            <!-- ESTADOS DINÁMICOS DE CARGA / ÉXITO / ERROR -->
+            <div id="estado-app" class="estado-container hide">
+                <div id="estado-loading" class="loading-box hide">
+                    <i class="fa-solid fa-circle-notch fa-spin icon-loading"></i>
+                    <div>
+                        <p class="loading-title">Procesando flujo multimedia con FFmpeg y yt-dlp...</p>
+                        <small class="loading-sub">Extrayendo en códec universal y sincronizando con MongoDB Atlas.</small>
+                    </div>
+                </div>
+                <div id="estado-success" class="alert alert-success hide">
+                    <i class="fa-solid fa-circle-check"></i> <span id="msg-success">¡Recurso generado con éxito!</span>
+                </div>
+                <div id="estado-error" class="alert alert-error hide">
+                    <i class="fa-solid fa-circle-exclamation"></i> <span id="msg-error">Ocurrió un error al procesar el video.</span>
+                </div>
+            </div>
+        </section>
+
+        <!-- SECCIÓN INFERIOR: HISTORIAL DE RECURSOS CON BUSCADOR, FILTROS Y REPRODUCTOR -->
+        <section class="historial-seccion">
+            <div class="historial-header">
+                <div class="historial-title-group">
+                    <h3><i class="fa-solid fa-photo-film text-accent"></i> Biblioteca Multimedia en la Nube</h3>
+                    <span class="subtitle-small">Reproduce tus clips, canciones o capturas directamente antes de descargarlos</span>
+                </div>
+
+                <!-- BARRA DE BÚSQUEDA Y FILTROS POR TIPO -->
+                <div class="historial-toolbar">
+                    <div class="search-box">
+                        <i class="fa-solid fa-magnifying-glass"></i>
+                        <input type="text" id="buscador-historial" placeholder="Buscar por título...">
+                    </div>
+                    <div class="filter-pills" id="filtros-tipo">
+                        <button type="button" class="filter-btn active" data-filter="todos">Todos</button>
+                        <button type="button" class="filter-btn" data-filter="video"><i class="fa-solid fa-scissors"></i> Clips</button>
+                        <button type="button" class="filter-btn" data-filter="video_completo"><i class="fa-solid fa-film"></i> Completos</button>
+                        <button type="button" class="filter-btn" data-filter="audio_completo"><i class="fa-solid fa-music"></i> MP3</button>
+                        <button type="button" class="filter-btn" data-filter="imagen"><i class="fa-solid fa-image"></i> Fotos</button>
+                    </div>
+                </div>
+            </div>
+
+            <div id="historial-grid" class="historial-grid">
+                <!-- Las tarjetas dinámicas con reproductor integrado se inyectan aquí mediante JS -->
+                <div class="no-data">
+                    <i class="fa-solid fa-folder-open"></i>
+                    <p>Cargando tu biblioteca multimedia...</p>
+                </div>
+            </div>
+        </section>
+    </main>
+
+    <!-- FOOTER PROFESIONAL -->
+    <footer class="site-footer">
+        <div class="footer-container">
+            <div class="footer-brand">
+                <div class="logo-brand-stack footer-logo-stack">
+                    <img src="/api/logo" alt="VEX Logo" class="custom-brand-logo footer-brand-img">
+                    <small class="brand-subtitle">Video Extraction Express</small>
+                </div>
+                <p class="footer-desc">
+                    Plataforma de procesamiento, recorte y extracción multimedia en tiempo real impulsada por Node.js, Express, FFmpeg y MongoDB Atlas.
+                </p>
+                <div class="footer-feature-tags">
+                    <span><i class="fa-solid fa-check-double"></i> Sin Marca de Agua</span>
+                    <span><i class="fa-solid fa-high-definition"></i> H.264 / MP3 HD</span>
+                </div>
+            </div>
+
+            <div class="footer-stack">
+                <span class="footer-label">Tecnologías e Integraciones</span>
+                <div class="footer-tech-badges">
+                    <span><i class="fa-brands fa-node-js"></i> Node.js</span>
+                    <span><i class="fa-solid fa-database"></i> MongoDB Atlas</span>
+                    <span><i class="fa-solid fa-film"></i> FFmpeg Engine</span>
+                    <span><i class="fa-solid fa-cloud-arrow-down"></i> yt-dlp Core</span>
+                    <span><i class="fa-brands fa-js"></i> ES6+ Fetch API</span>
+                    <span><i class="fa-solid fa-server"></i> RESTful CRUD</span>
+                </div>
+            </div>
+
+            <div class="footer-credits">
+                <span class="footer-label">Arquitectura, Redes y Soporte</span>
+                <div class="developers-card">
+                    <div class="dev-avatar-icon">
+                        <i class="fa-solid fa-laptop-code"></i>
+                    </div>
+                    <div class="dev-info-col">
+                        <span class="dev-names">Yeeson &amp; Jennifer</span>
+                        <small class="dev-role">Full-Stack Development Team</small>
+                    </div>
+                </div>
+
+                <!-- BOTONES DE REDES / GITHUB / CONTACTO DEL EQUIPO -->
+                <div class="team-social-row">
+                    <a href="https://github.com" target="_blank" rel="noopener noreferrer" class="social-pill github" title="Repositorio en GitHub">
+                        <i class="fa-brands fa-github"></i> GitHub
+                    </a>
+                    <a href="https://linkedin.com" target="_blank" rel="noopener noreferrer" class="social-pill linkedin" title="Perfil Profesional LinkedIn">
+                        <i class="fa-brands fa-linkedin"></i> LinkedIn
+                    </a>
+                    <a href="https://instagram.com" target="_blank" rel="noopener noreferrer" class="social-pill instagram" title="Instagram del Equipo">
+                        <i class="fa-brands fa-instagram"></i> Instagram
+                    </a>
+                    <a href="mailto:soporte@vexstudio.com" class="social-pill contact" title="Contacto y Soporte Técnico">
+                        <i class="fa-solid fa-envelope"></i> Soporte
+                    </a>
+                </div>
+            </div>
+        </div>
+
+        <div class="footer-bottom">
+            <span>&copy; 2026 VEX — Video Extraction Express. Todos los derechos reservados.</span>
+        </div>
+    </footer>
+
+    <script src="script.js" type="module"></script>
+</body>
+</html>
