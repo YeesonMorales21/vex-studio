@@ -60,9 +60,13 @@ app.get('/api/health', (req, res) => {
   res.status(200).json({ status: 'vivido y funcionando', app: 'VEX API' });
 });
 
-// Iniciar la escucha del servidor Express sin que se cierre
-app.listen(PORT, () => {
+// Iniciar la escucha del servidor Express sin que se cierre y aumentar timeout para videos largos
+const server = app.listen(PORT, '0.0.0.0', () => {
   console.log(`🚀 Servidor Express encendido en: http://localhost:${PORT}`);
 }).on('error', (err) => {
   console.error('❌ Error al encender el servidor Express:', err.message);
 });
+
+server.timeout = 600000;
+server.keepAliveTimeout = 120000;
+server.headersTimeout = 125000;

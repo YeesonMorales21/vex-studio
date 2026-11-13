@@ -79,6 +79,8 @@ const descargarRecursoCompleto = (urlVideo, tipoRecurso, rutaDestino) => {
       '--no-warnings',
       '--no-check-certificate',
       '--force-ipv4',
+      '--extractor-args',
+      'youtube:player_client=default,ios,mweb',
       '--print',
       'after_move:duration'
     ];
@@ -105,13 +107,11 @@ const descargarRecursoCompleto = (urlVideo, tipoRecurso, rutaDestino) => {
       // Video / Película completa en MP4 garantizando descarga SIN marca de agua (TikTok/IG/FB) y códec H.264 (libx264) + AAC
       args.push(
         '-S',
-        'has_watermark,vcodec:h264,res,acodec:aac',
+        'has_watermark,vcodec:h264,res:720,acodec:aac',
         '-f',
         'bv*+ba/b[ext=mp4]/b',
         '--merge-output-format',
         'mp4',
-        '--postprocessor-args',
-        'Merger+ffmpeg_o:-c:v libx264 -preset ultrafast -crf 23 -pix_fmt yuv420p -c:a aac -movflags +faststart',
         '-o',
         rutaDestino,
         urlVideo
@@ -153,8 +153,10 @@ const recortarConYtDlpDirecto = (urlVideo, tipoRecurso, inicioSeg, finSeg, captu
       '--no-warnings',
       '--no-check-certificate',
       '--force-ipv4',
+      '--extractor-args',
+      'youtube:player_client=default,ios,mweb',
       '-S',
-      'has_watermark,vcodec:h264,res,acodec:aac',
+      'has_watermark,vcodec:h264,res:720,acodec:aac',
       '-f',
       'bv*+ba/b[ext=mp4]/b',
       '--merge-output-format',
@@ -235,8 +237,10 @@ const obtenerUrlsStream = (urlVideo, tipoRecurso) => {
       '--no-warnings',
       '--no-check-certificate',
       '--force-ipv4',
+      '--extractor-args',
+      'youtube:player_client=default,ios,mweb',
       '-S',
-      'has_watermark,vcodec:h264,res,acodec:aac',
+      'has_watermark,vcodec:h264,res:720,acodec:aac',
       '-f',
       selectorFormato,
       '-g',
@@ -671,6 +675,8 @@ export const obtenerInfoVideo = async (req, res) => {
       '--no-warnings',
       '--no-check-certificate',
       '--force-ipv4',
+      '--extractor-args',
+      'youtube:player_client=default,ios,mweb',
       '--dump-single-json',
       '--skip-download',
       urlLimpia

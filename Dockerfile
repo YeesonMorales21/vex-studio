@@ -1,13 +1,13 @@
 # Imagen oficial ligera de Node.js 22 para despliegue en la nube (Render / Railway / Fly.io)
 FROM node:22-bookworm-slim
 
-# Instalar FFmpeg, Python3, certificados SSL y el binario oficial de yt-dlp para Linux
+# Instalar FFmpeg, Python3, certificados SSL y la versión más reciente de yt-dlp para Linux
 RUN apt-get update && apt-get install -y --no-install-recommends \
     ffmpeg \
     python3 \
     ca-certificates \
     curl \
-  && curl -L https://github.com/yt-dlp/yt-dlp/releases/latest/download/yt-dlp -o /usr/local/bin/yt-dlp \
+  && curl -L https://github.com/yt-dlp/yt-dlp/releases/latest/download/yt-dlp_linux -o /usr/local/bin/yt-dlp \
   && chmod a+rx /usr/local/bin/yt-dlp \
   && apt-get clean \
   && rm -rf /var/lib/apt/lists/*
