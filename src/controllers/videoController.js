@@ -27,6 +27,15 @@ const resolverEjecutable = (nombreBase) => {
   return nombreBase; // En Linux (Render/Railway) o si está en el PATH global
 };
 
+// Devuelve argumentos adicionales si existe cookies.txt en la raíz del proyecto (para evitar bloqueo de bots de YouTube en Render)
+const obtenerArgsCookies = () => {
+  const rutaCookies = path.join(raizProyecto, 'cookies.txt');
+  if (fs.existsSync(rutaCookies)) {
+    return ['--cookies', rutaCookies];
+  }
+  return [];
+};
+
 // Convierte formatos "mm:ss", "hh:mm:ss" o segundos numéricos ("90") al total de segundos
 const parsearTiempoASegundos = (valor) => {
   if (valor === undefined || valor === null || valor === '') return 0;
@@ -80,7 +89,8 @@ const descargarRecursoCompleto = (urlVideo, tipoRecurso, rutaDestino) => {
       '--no-check-certificate',
       '--force-ipv4',
       '--extractor-args',
-      'youtube:player_client=default,ios,mweb',
+      'youtube:player_client=tv,ios,mweb,web',
+      ...obtenerArgsCookies(),
       '--print',
       'after_move:duration'
     ];
@@ -141,7 +151,7 @@ const descargarRecursoCompleto = (urlVideo, tipoRecurso, rutaDestino) => {
   });
 };
 
-// Respaldo universal para plataformas que bloquean acceso directo de FFmpeg (como TikTok, Instagram, Facebook o Kick)
+// Respaldo directo con yt-dlp + FFmpeg ligero (especial para TikTok, Instagram, Facebook, Kick y contenedores con 512MB RAM)
 const recortarConYtDlpDirecto = (urlVideo, tipoRecurso, inicioSeg, finSeg, capturaSeg, rutaDestino) => {
   return new Promise((resolve, reject) => {
     const binYtDlp = resolverEjecutable('yt-dlp');
@@ -154,39 +164,42 @@ const recortarConYtDlpDirecto = (urlVideo, tipoRecurso, inicioSeg, finSeg, captu
       '--no-check-certificate',
       '--force-ipv4',
       '--extractor-args',
-      'youtube:player_client=default,ios,mweb',
+      'youtube:player_client=tv,ios,mweb,web',
+      ...obtenerArgsCookies(),
       '-S',
       'has_watermark,vcodec:h264,res:720,acodec:aac',
       '-f',
       'bv*+ba/b[ext=mp4]/b',
       '--merge-output-format',
-      'mp4'
+      'mp4',
+      '-o',
+      tempBase,
+      urlVideo
     ];
 
     if (binFfmpeg !== 'ffmpeg') {
-      args.push('--ffmpeg-location', binFfmpeg);
+      args.unshift('--ffmpeg-location', binFfmpeg);
     }
 
-    if (tipoRecurso === 'video') {
-      args.push('--download-sections', `*${inicioSeg}-${finSeg}`, '--force-keyframes-at-cuts');
-    }
-
-    args.push('-o', tempBase, urlVideo);
-
-    execFile(binYtDlp, args, { windowsHide: true, maxBuffer: 25 * 1024 * 1024 }, (err) => {
+    execFile(binYtDlp, args, { windowsHide: true, timeout: 60000, maxBuffer: 15 * 1024 * 1024 }, (err) => {
       if (err || !fs.existsSync(tempBase)) {
         if (fs.existsSync(tempBase)) fs.unlinkSync(tempBase);
         return reject(new Error('No se pudo extraer desde esta plataforma (verifica que el enlace sea público).'));
       }
 
-      // Convertir el resultado temporal a H.264 universal o extraer el fotograma JPG
+      const duracion = Math.max(1, finSeg - inicioSeg);
+
+      // Recorte directo sobre el archivo local descargado con -threads 1 para no exceder los 512MB RAM de Render Free
       const ffmpegArgs =
         tipoRecurso === 'video'
           ? [
+              '-ss', String(inicioSeg),
               '-i', tempBase,
+              '-t', String(duracion),
+              '-threads', '1',
               '-c:v', 'libx264',
               '-preset', 'ultrafast',
-              '-crf', '23',
+              '-crf', '24',
               '-pix_fmt', 'yuv420p',
               '-c:a', 'aac',
               '-b:a', '128k',
@@ -201,7 +214,7 @@ const recortarConYtDlpDirecto = (urlVideo, tipoRecurso, inicioSeg, finSeg, captu
               '-y', rutaDestino
             ];
 
-      execFile(binFfmpeg, ffmpegArgs, { windowsHide: true, maxBuffer: 10 * 1024 * 1024 }, (ffErr) => {
+      execFile(binFfmpeg, ffmpegArgs, { windowsHide: true, timeout: 60000, maxBuffer: 10 * 1024 * 1024 }, (ffErr) => {
         if (fs.existsSync(tempBase)) fs.unlinkSync(tempBase);
         if (ffErr || !fs.existsSync(rutaDestino)) {
           return reject(new Error('Error al convertir el archivo multimedia a formato compatible.'));
@@ -238,7 +251,8 @@ const obtenerUrlsStream = (urlVideo, tipoRecurso) => {
       '--no-check-certificate',
       '--force-ipv4',
       '--extractor-args',
-      'youtube:player_client=default,ios,mweb',
+      'youtube:player_client=tv,ios,mweb,web',
+      ...obtenerArgsCookies(),
       '-S',
       'has_watermark,vcodec:h264,res:720,acodec:aac',
       '-f',
@@ -249,10 +263,18 @@ const obtenerUrlsStream = (urlVideo, tipoRecurso) => {
 
     execFile(binYtDlp, args, { windowsHide: true, timeout: 45000 }, (error, stdout, stderr) => {
       if (error) {
-        console.error('❌ Error en yt-dlp:', stderr || error.message);
+        const detalleErr = String(stderr || error.message || '');
+        console.error('❌ Error en yt-dlp:', detalleErr);
         if (error.code === 'ENOENT') {
           return reject(
             new Error('No se encontró yt-dlp.exe en la raíz del proyecto ni instalado en el sistema.')
+          );
+        }
+        if (/Sign in to confirm you.?re not a bot|bot/i.test(detalleErr)) {
+          return reject(
+            new Error(
+              'YouTube bloqueó temporalmente la IP del servidor gratuito en la nube (Render). Prueba con enlaces de TikTok/Facebook en Render, o usa http://localhost:3000 en tu PC para YouTube.'
+            )
           );
         }
         return reject(
@@ -363,7 +385,44 @@ export const crearRecurso = async (req, res) => {
       }
     }
 
-    // Extraer las URLs directas de los servidores de YouTube/TikTok/Kick
+    const esPlataformaDirecta = /tiktok\.com|instagram\.com|facebook\.com|fb\.watch|kick\.com/i.test(
+      videoUrlOriginal
+    );
+
+    if (esPlataformaDirecta) {
+      try {
+        await recortarConYtDlpDirecto(
+          videoUrlOriginal.trim(),
+          tipoRecurso,
+          inicioSeg,
+          finSeg,
+          capturaSeg,
+          rutaDestino
+        );
+
+        const nuevoClip = new Clip({
+          videoUrlOriginal: videoUrlOriginal.trim(),
+          tipoRecurso,
+          titulo: String(titulo).trim(),
+          tiempoInicio: tipoRecurso === 'video' ? inicioSeg : 0,
+          tiempoFin: tipoRecurso === 'video' ? finSeg : 0,
+          segundoCaptura: tipoRecurso === 'imagen' ? capturaSeg : 0,
+          nombreArchivo: nombreArchivoReal
+        });
+
+        await nuevoClip.save();
+
+        return res.status(201).json({
+          success: true,
+          message: `¡${tipoRecurso === 'video' ? 'Clip MP4 sin marca de agua' : 'Fotograma JPG'} generado y guardado en la nube!`,
+          data: nuevoClip
+        });
+      } catch (directErr) {
+        return res.status(500).json({ success: false, message: directErr.message });
+      }
+    }
+
+    // Extraer las URLs directas de los servidores de YouTube
     let urlsStream;
     try {
       urlsStream = await obtenerUrlsStream(videoUrlOriginal.trim(), tipoRecurso);
@@ -397,11 +456,12 @@ export const crearRecurso = async (req, res) => {
         ];
       }
 
-      // Recodificamos a H.264 (yuv420p) + AAC con +faststart para que abra en CUALQUIER reproductor de Windows sin pedir códecs
+      // Recodificamos a H.264 (yuv420p) + AAC con -threads 1 para no superar los 512MB RAM en Render Free
       ffmpegArgs.push(
+        '-threads', '1',
         '-c:v', 'libx264',
         '-preset', 'ultrafast',
-        '-crf', '23',
+        '-crf', '24',
         '-pix_fmt', 'yuv420p',
         '-c:a', 'aac',
         '-b:a', '128k',
@@ -676,7 +736,8 @@ export const obtenerInfoVideo = async (req, res) => {
       '--no-check-certificate',
       '--force-ipv4',
       '--extractor-args',
-      'youtube:player_client=default,ios,mweb',
+      'youtube:player_client=tv,ios,mweb,web',
+      ...obtenerArgsCookies(),
       '--dump-single-json',
       '--skip-download',
       urlLimpia
