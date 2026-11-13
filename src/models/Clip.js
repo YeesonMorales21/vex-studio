@@ -39,6 +39,11 @@ const ClipSchema = new mongoose.Schema({
     type: String, 
     required: [true, 'El nombre del archivo físico es obligatorio'] 
   },
+  clienteId: {
+    type: String,
+    default: 'publico',
+    index: true
+  },
   creadoEn: { 
     type: Date, 
     default: Date.now 

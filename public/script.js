@@ -36,6 +36,19 @@ const msgError = document.getElementById('msg-error');
 // URL Base de tu API REST
 const API_URL = '/api/clips';
 
+// Generar o recuperar el identificador único privado de este dispositivo / navegador
+function obtenerClienteId() {
+    const CLAVE_STORAGE = 'vex_device_client_id';
+    let id = localStorage.getItem(CLAVE_STORAGE);
+    if (!id) {
+        id = 'vex_' + Date.now().toString(36) + '_' + Math.random().toString(36).substring(2, 10);
+        localStorage.setItem(CLAVE_STORAGE, id);
+    }
+    return id;
+}
+
+const CLIENTE_ID = obtenerClienteId();
+
 // Estado local para filtrado y búsqueda instantánea en la biblioteca
 let cacheHistorial = [];
 let filtroActivo = 'todos';
@@ -218,13 +231,17 @@ formExtractor.addEventListener('submit', async (e) => {
         titulo: tituloInput.value.trim() || 'Recurso Sin Título',
         tiempoInicio: seleccion === 'video' ? tiempoInicioSeg : 0,
         tiempoFin: seleccion === 'video' ? tiempoFinSeg : 0,
-        segundoCaptura: seleccion === 'imagen' ? segundoCapturaSeg : 0
+        segundoCaptura: seleccion === 'imagen' ? segundoCapturaSeg : 0,
+        clienteId: CLIENTE_ID
     };
 
     try {
         const respuesta = await fetch(API_URL, {
             method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
+            headers: {
+                'Content-Type': 'application/json',
+                'X-Client-Id': CLIENTE_ID
+            },
             body: JSON.stringify(datosFormulario)
         });
 
@@ -368,10 +385,12 @@ function renderizarHistorial() {
     });
 }
 
-// 4. OPERACIÓN CRUD (LEER): Listar el historial de registros guardados en MongoDB Atlas
+// 4. OPERACIÓN CRUD (LEER): Listar únicamente el historial privado de este dispositivo / navegador
 async function cargarHistorial() {
     try {
-        const respuesta = await fetch(API_URL);
+        const respuesta = await fetch(`${API_URL}?clienteId=${encodeURIComponent(CLIENTE_ID)}`, {
+            headers: { 'X-Client-Id': CLIENTE_ID }
+        });
         const resultado = await respuesta.json();
 
         if (resultado.success) {

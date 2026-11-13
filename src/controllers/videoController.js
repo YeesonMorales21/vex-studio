@@ -299,7 +299,8 @@ const obtenerUrlsStream = (urlVideo, tipoRecurso) => {
 // 1. CREAR: Procesar el video en tiempo real con FFmpeg y guardar en MongoDB Atlas (POST)
 export const crearRecurso = async (req, res) => {
   try {
-    const { videoUrlOriginal, tipoRecurso, titulo, tiempoInicio, tiempoFin, segundoCaptura } = req.body;
+    const { videoUrlOriginal, tipoRecurso, titulo, tiempoInicio, tiempoFin, segundoCaptura, clienteId } = req.body;
+    const idDispositivo = String(clienteId || req.headers['x-client-id'] || 'publico').trim();
 
     // Validaciones básicas requeridas por la rúbrica
     if (!videoUrlOriginal || !tipoRecurso || !titulo || !String(titulo).trim()) {
@@ -364,7 +365,8 @@ export const crearRecurso = async (req, res) => {
           tiempoFin: duracionSegundos,
           duracionSegundos,
           segundoCaptura: 0,
-          nombreArchivo: nombreArchivoReal
+          nombreArchivo: nombreArchivoReal,
+          clienteId: idDispositivo
         });
 
         await nuevoClip.save();
@@ -407,7 +409,8 @@ export const crearRecurso = async (req, res) => {
           tiempoInicio: tipoRecurso === 'video' ? inicioSeg : 0,
           tiempoFin: tipoRecurso === 'video' ? finSeg : 0,
           segundoCaptura: tipoRecurso === 'imagen' ? capturaSeg : 0,
-          nombreArchivo: nombreArchivoReal
+          nombreArchivo: nombreArchivoReal,
+          clienteId: idDispositivo
         });
 
         await nuevoClip.save();
@@ -512,7 +515,8 @@ export const crearRecurso = async (req, res) => {
           tiempoInicio: tipoRecurso === 'video' ? inicioSeg : 0,
           tiempoFin: tipoRecurso === 'video' ? finSeg : 0,
           segundoCaptura: tipoRecurso === 'imagen' ? capturaSeg : 0,
-          nombreArchivo: nombreArchivoReal
+          nombreArchivo: nombreArchivoReal,
+          clienteId: idDispositivo
         });
 
         await nuevoClip.save();
@@ -539,10 +543,13 @@ export const crearRecurso = async (req, res) => {
   }
 };
 
-// 2. LEER TODOS: Listar el historial real (GET)
+// 2. LEER TODOS: Listar el historial real filtrado por dispositivo (o todos si se consulta desde Postman/API directa)
 export const listarRecursos = async (req, res) => {
   try {
-    const historial = await Clip.find().sort({ creadoEn: -1 }).lean();
+    const idDispositivo = String(req.query.clienteId || req.headers['x-client-id'] || '').trim();
+    const filtro = idDispositivo ? { clienteId: idDispositivo } : {};
+
+    const historial = await Clip.find(filtro).sort({ creadoEn: -1 }).lean();
     const carpetaDownloads = path.join(raizProyecto, 'public', 'downloads');
 
     // Indicamos si el archivo físico existe en esta PC/USB para evitar descargas corruptas de otra máquina
